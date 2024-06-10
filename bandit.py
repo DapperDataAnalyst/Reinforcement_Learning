@@ -19,11 +19,14 @@ class NonStationaryBandit:
         assert a < len(self.q_star)
 
         #####################
-        # TODO: Implement the followings
         #  (1) determining whether the action a is the best action
         #  (2) generating noisy reward
         #  (3) each arm takes independent random walks
         #####################
+        
+        is_best_action = a == np.argmax(self.q_star)
+        reward = np.random.normal(self.q_star[a], 1)
+        self.q_star += np.random.normal(0, 0.01, size=len(self.q_star))
 
         return reward, is_best_action
 
@@ -46,9 +49,7 @@ class ActionValue(object):
             a: int, action
         """
 
-        #####################
-        # TODO: Implement the epsilon-greedy policy
-        #####################
+        a = np.random.randint(self.k) if np.random.rand() < self.epsilon else np.argmax(self.q)
 
         return a
 
@@ -61,11 +62,10 @@ class SampleAverage(ActionValue):
     def reset(self):
         self.n = np.zeros_like(self.q)
 
-    def update(self, a: int, r: float):
-        #####################
-        # TODO: Implement how sample average method updates its ESTIMATED q value
-        #####################
-
+    def update(self, a: int, r: float):        
+        self.n[a] += 1
+        self.q[a] += (r - self.q[a]) / self.n[a]
+    
 
 class ConstantStepSize(ActionValue):
     def __init__(self, alpha: float, k: int, epsilon: float):
@@ -73,9 +73,7 @@ class ConstantStepSize(ActionValue):
         self.alpha = alpha
 
     def update(self, a: int, r: float):
-        #####################
-        # TODO: Implement how constant step-size method updates its ESTIMATED q value
-        #####################
+        self.q[a] += self.alpha * (r - self.q[a])
 
 
 def experiment(bandit: NonStationaryBandit, agent: ActionValue, steps: int):
@@ -89,6 +87,9 @@ def experiment(bandit: NonStationaryBandit, agent: ActionValue, steps: int):
         #####################
         # TODO: Implement how agent interacts with the bandit and updates its ESTIMATED q value
         #####################
+        a = agent.epsilon_greedy_policy()
+        r, is_best_action = bandit.step(a)
+        agent.update(a, r)
 
         rs.append(r)
         best_action_taken.append(is_best_action)
