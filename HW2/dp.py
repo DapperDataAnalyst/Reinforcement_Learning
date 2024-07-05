@@ -4,7 +4,7 @@ import numpy as np
 from env import EnvWithModel
 from policy import Policy
 
-def value_prediction(env:EnvWithModel, pi:Policy, initV:np.array, theta:float) -> Tuple[np.array,np.array]:
+def value_prediction(env: EnvWithModel, pi: Policy, initV: np.array, theta: float) -> Tuple[np.array, np.array]:
     """
     inp:
         env: environment with model information, i.e. you know transition dynamics and reward function
@@ -15,31 +15,33 @@ def value_prediction(env:EnvWithModel, pi:Policy, initV:np.array, theta:float) -
         V: $v_\pi$ function; numpy array shape of [nS]
         Q: $q_\pi$ function; numpy array shape of [nS,nA]
     """
-
-    #####################
-    # TODO: Implement Value Prediction Algorithm (Hint: Sutton Book p.75)
-    #####################
     
-    V = initV.copy()  # Initialize V(s) arbitrarily
+    V = initV.copy()
     nS, nA = env.spec.nS, env.spec.nA
-    Q = np.zeros(nS,nA)
-    delta = 0
-    alpha = 1
+    gamma = env.spec.gamma
     
-    while delta <= theta:
+    while True:
+        delta = 0
         for s in range(nS):
             v = V[s]
-            new_state_value = 0
+            new_value = 0
             for a in range(nA):
-                action_prob = pi.action_prob(s,a)
+                action_prob = pi.action_prob(s, a)
+                transition_value = 0
                 for s_prime in range(nS):
-                    reward = env.R[s,a,s_prime]
-                    discounted_next_state_value = env.spec.gamma*V[s_prime]
-                    new_state_value += action_prob*env.TD[s,a,s_prime]*(reward + discounted_next_state_value)
-                    Q[s,a] += action_prob*alpha*(reward + discounted_next_state_value)
-            V[s] = new_state_value
+                    transition_value += action_prob * env.TD[s, a, s_prime] * (env.R[s, a, s_prime] + gamma * V[s_prime])
+                new_value += transition_value
+            V[s] = new_value
             delta = max(delta, abs(v - V[s]))
-        
+        if delta < theta:
+            break
+    
+    Q = np.zeros((nS, nA))
+    for s in range(nS):
+        for a in range(nA):
+            for s_prime in range(nS):
+                Q[s, a] += env.TD[s, a, s_prime] * (env.R[s, a, s_prime] + gamma * V[s_prime])
+                    
     return V, Q
 
 def value_iteration(env: EnvWithModel, initV: np.array, theta: float) -> Tuple[np.array, Policy]:
