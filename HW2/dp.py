@@ -21,32 +21,28 @@ def value_prediction(env:EnvWithModel, pi:Policy, initV:np.array, theta:float) -
     #####################
     
     V = initV.copy()  # Initialize V(s) arbitrarily
-    V[-1] = 0  # Set V(terminal) to be zero
     nS, nA = env.spec.nS, env.spec.nA
+    Q = np.zeros(nS,nA)
     delta = 0
+    alpha = 1
     
-    while delta < theta:
+    while delta <= theta:
         for s in range(nS):
             v = V[s]
-            s_prime = s + 1 if s != nS - 1 else s
-            new_value = 0
+            new_state_value = 0
             for a in range(nA):
-                new_value += pi.action_prob(s,a) * env.TD[s,a,s_prime] * (env.R[s,a,s_prime] + env.spec.gamma * V[s_prime])
-            V[s] = new_value
+                action_prob = pi.action_prob(s,a)
+                for s_prime in range(nS):
+                    reward = env.R[s,a,s_prime]
+                    discounted_next_state_value = env.spec.gamma*V[s_prime]
+                    new_state_value += action_prob*env.TD[s,a,s_prime]*(reward + discounted_next_state_value)
+                    Q[s,a] += action_prob*alpha*(reward + discounted_next_state_value)
+            V[s] = new_state_value
             delta = max(delta, abs(v - V[s]))
         
-    # Calculate Q(s, a) based on the stable V(s)
-    Q = np.zeros((nS, nA))
-    for s in range(nS):
-        for a in range(nA):
-            q_value = 0
-            for prob, next_state, reward, done in env.P[s][a]:
-                q_value += prob * (reward + V[next_state])
-            Q[s, a] = q_value
-
     return V, Q
 
-def value_iteration(env:EnvWithModel, initV:np.array, theta:float) -> Tuple[np.array,Policy]:
+def value_iteration(env: EnvWithModel, initV: np.array, theta: float) -> Tuple[np.array, Policy]:
     """
     inp:
         env: environment with model information, i.e. you know transition dynamics and reward function
@@ -57,8 +53,50 @@ def value_iteration(env:EnvWithModel, initV:np.array, theta:float) -> Tuple[np.a
         policy: optimal deterministic policy; instance of Policy class
     """
 
-    #####################
-    # TODO: Implement Value Iteration Algorithm (Hint: Sutton Book p.83)
-    #####################
+    V = initV.copy()  # Initialize V(s) arbitrarily
+    nS, nA = env.spec.nS, env.spec.nA
+    gamma = env.spec.gamma
 
-    return V, pi
+    while True:
+        delta = 0
+        for s in range(nS):
+            v = V[s]
+            # Compute the maximum expected value over all actions
+            max_value = float('-inf')
+            for a in range(nA):
+                action_value = 0
+                for s_prime in range(nS):
+                    action_value += env.TD[s, a, s_prime] * (env.R[s, a, s_prime] + gamma * V[s_prime])
+                if action_value > max_value:
+                    max_value = action_value
+            V[s] = max_value
+            delta = max(delta, abs(v - V[s]))
+        
+        if delta < theta:
+            break
+
+    # Derive the optimal policy
+    class DeterministicPolicy(Policy):
+        def __init__(self, policy):
+            self.policy = policy
+
+        def action_prob(self, state: int, action: int) -> float:
+            return 1.0 if self.policy[state] == action else 0.0
+
+        def action(self, state: int) -> int:
+            return self.policy[state]
+
+    policy = np.zeros(nS, dtype=int)
+    for s in range(nS):
+        max_value = float('-inf')
+        best_action = 0
+        for a in range(nA):
+            action_value = 0
+            for s_prime in range(nS):
+                action_value += env.TD[s, a, s_prime] * (env.R[s, a, s_prime] + gamma * V[s_prime])
+            if action_value > max_value:
+                max_value = action_value
+                best_action = a
+        policy[s] = best_action
+
+    return V, DeterministicPolicy(policy)
