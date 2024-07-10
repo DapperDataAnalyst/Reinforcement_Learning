@@ -67,7 +67,6 @@ def off_policy_n_step_sarsa(
 
     Q = initQ.copy()
     gamma = env_spec.gamma
-    nS, nA = env_spec.nS, env_spec.nA
 
     def greedy_policy(Q):
         class GreedyPolicy(Policy):
@@ -83,15 +82,11 @@ def off_policy_n_step_sarsa(
 
     for episode in trajs:
         T = len(episode)
-        states = [step[0] for step in episode] #+ [episode[-1][3]]  # S_0 to S_T
+        states = [step[0] for step in episode]  # S_0 to S_T
         actions = [step[1] for step in episode] + [0]  # A_0 to A_T, add dummy action at the end
         rewards = [step[2] for step in episode]  # R_1 to R_T
 
         for t in range(T):
-            # s_t, a_t, r_t1, s_t1 = episode[t]
-            # actions[t] = bpi.action(s_t)
-            # actions[t + 1] = bpi.action(s_t1)
-
             tau = t - n + 1
             if tau >= 0:
                 rho = np.prod([pi.action_prob(states[i], actions[i]) / bpi.action_prob(states[i], actions[i]) for i in range(tau, min(tau + n, T))])
