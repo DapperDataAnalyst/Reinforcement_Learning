@@ -1,6 +1,6 @@
 import sys
 from matplotlib import pyplot as plt
-from Ch1.bandit import main
+from HW1.bandit import main
 
 
 results = main()
