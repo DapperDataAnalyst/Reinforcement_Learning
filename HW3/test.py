@@ -17,7 +17,7 @@ def test_tile():
         env.observation_space.low,
         env.observation_space.high,
         num_tilings=10,
-        tile_width=np.array([.45,.035]))
+        tile_width=np.array([.451,.0351]))
 
     semi_gradient_n_step_td(env,1.,policy,10,0.01,V,1000)
 
